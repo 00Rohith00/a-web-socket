@@ -1,0 +1,319 @@
+import express from 'express'
+import http from 'http'
+import WebSocket from 'ws'
+
+const app = express()
+const server = http.createServer(app)
+const wss = new WebSocket.Server({ server })
+
+// Dictionary to store connected clients by hospital and channel
+const hospitals = new Map()
+
+// WebSocket server event handling
+wss.on('connection', (ws, req) => {
+  console.log('WebSocket client connected')
+  console.log(req.url)
+  // Extract hospital, channel, and other details from the URL
+  const urlParts = req.url.split('/')
+  const hospital = urlParts[1]
+  const channel = urlParts[2]
+
+  // Validate hospital and channel
+  if (isValidHospital(hospital) && isValidChannel(channel)) {
+    // Add the WebSocket connection to the hospital and channel
+    if (!hospitals.has(hospital)) {
+      hospitals.set(hospital, new Map())
+    }
+    const channels = hospitals.get(hospital)
+    if (!channels.has(channel)) {
+      channels.set(channel, [])
+    }
+    channels.get(channel).push(ws)
+
+    // Handle messages received from clients in the channel
+    ws.on('message', (message) => {
+      console.log(`Received: ${message}`)
+
+      // Broadcast the message to all clients in the channel
+      const clients = channels.get(channel)
+      for (const client of clients) {
+        if (client !== ws && client.readyState === WebSocket.OPEN) {
+          client.send(message)
+        }
+      }
+    });
+
+    // Send a welcome message to the client
+    ws.send(`Welcome to hospital: ${hospital}, channel: ${channel}`)
+  } else {
+    // Close the connection if the hospital or channel is not valid
+    ws.close()
+  }
+});
+
+// Example function for sending emergency notifications with data
+function sendEmergencyNotification(hospital, data) {
+  const notificationChannel = 'notification'
+
+  // Check if the hospital has the notification channel
+  if (hospitals.has(hospital) && hospitals.get(hospital).has(notificationChannel)) {
+    const clients = hospitals.get(hospital).get(notificationChannel)
+
+    // Broadcast the emergency notification with data to all clients in the notification channel
+    for (const client of clients) {
+      if (client.readyState === WebSocket.OPEN) {
+        const notification = {
+          type: 'emergency',
+          data: data,
+        };
+        client.send(JSON.stringify(notification))
+      }
+    }
+  }
+}
+
+// Validation functions
+function isValidHospital(hospital) {
+  // Implement your hospital validation logic here
+  return ['devTool','royal', 'kmch'].includes(hospital)
+}
+
+function isValidChannel(channel) {
+  // Implement your channel validation logic here
+  return ['devTool','joystick', 'onlineoffline', 'notification'].includes(channel)
+}
+
+// Start the HTTP server on port 5050
+server.listen(5050, () => {
+  console.log('WebSocket server is running on port 5050')
+});
+
+// Example: Sending an emergency notification with data to Royal Hospital
+const emergencyData = {
+  patientName: 'John Doe',
+  emergencyDetails: 'Critical condition',
+  appointmentTime: '2024-01-24 10:00 AM',
+};
+
+sendEmergencyNotification('royal', emergencyData)
+
+
+
+// /socketServer/
+
+
+
+
+
+
+
+// ---------------------------------------
+//  No limited to join like anyone can join
+
+import WebSocket from 'ws'
+import socketRouter from './src/router/router.js'
+import { server, app, wss } from './src/application/base.router.js'
+import { port, prod } from './src/config/config.js'
+import { loadAssets } from './src/utils/load.assets.js'
+
+app.use(socketRouter)
+// Dictionary to store connected clients by hospital and channel
+const hospitals = new Map()
+
+wss.on('connection', (ws, req) => {
+  console.log('WebSocket client connected')
+  console.log(req.url)
+  // Extract hospital, channel, and other details from the URL
+  const urlParts = req.url.split('/')
+  const hospital = urlParts[1]
+  const channel = urlParts[2]
+
+  // Validate hospital and channel
+  if (isValidHospital(hospital) && isValidChannel(channel)) {
+    // Add the WebSocket connection to the hospital and channel
+    if (!hospitals.has(hospital)) {
+      hospitals.set(hospital, new Map())
+    }
+    const channels = hospitals.get(hospital)
+    if (!channels.has(channel)) {
+      channels.set(channel, [])
+    }
+    channels.get(channel).push(ws)
+
+    // Handle messages received from clients in the channel
+    ws.on('message', (message) => {
+      console.log(`Received: ${message}`)
+      // Broadcast the message to all clients in the channel
+      const clients = channels.get(channel)
+      for (const client of clients) {
+        if (client !== ws && client.readyState === WebSocket.OPEN) {
+          client.send(message)
+        }
+      }
+    });
+    // Send a welcome message to the client
+    ws.send(`Welcome to hospital: ${hospital}, channel: ${channel}`);
+
+  } else {
+    ws.send(`Internal server error.`);
+    // Close the connection if the hospital or channel is not valid
+    ws.close();
+  }
+});
+
+// Validation functions
+const isValidHospital = (hospital) => {
+  // Implement hospital validation logic here
+  // -- Gets this array from local database like sqlite or lowdb or Nedb
+  return ['devTool', 'royal', 'kmch'].includes(hospital);
+}
+
+const isValidChannel = (channel) => {
+  // Implement  channel validation logic here
+  // -- Gets this array from api like a cron job runs every 1hr to get this channels list in db
+  return ['test', 'joystick', 'onlineoffline', 'notification'].includes(channel);
+}
+
+loadAssets() ?
+  server.listen(port,
+    () => {
+      console.log(`Server is Running on \n👉 Mode [ ${prod.mode} ] \n👉 Port [ ${port} ]`);
+    }
+  ) :
+  console.log("🔴 Cannot read env file.");
+
+
+
+// -----------------------------
+// last changes
+
+import WebSocket from 'ws'
+import socketRouter from './src/router/router.js'
+import { server, app, wss } from './src/application/base.router.js'
+import { port, prod } from './src/config/config.js'
+import { loadAssets } from './src/utils/load.assets.js'
+
+app.use(socketRouter)
+// Dictionary to store connected clients by hospital and channel
+const hospitals = new Map()
+
+// wss.on('connection', (ws, req) => {
+//   console.log('WebSocket client connected')
+//   console.log(req.url)
+//   // Extract hospital, channel, and other details from the URL
+//   const urlParts = req.url.split('/')
+//   const hospital = urlParts[1]
+//   const channel = urlParts[2]
+
+//   // Validate hospital and channel
+//   if (isValidHospital(hospital) && isValidChannel(channel)) {
+//     // Add the WebSocket connection to the hospital and channel if less than 2 users already connected
+//     if (!hospitals.has(hospital)) {
+//       hospitals.set(hospital, new Map())
+//     }
+//     const channels = hospitals.get(hospital)
+//     if (!channels.has(channel)) {
+//       channels.set(channel, [])
+//     }
+//     const channelUsers = channels.get(channel)
+//     // Apply the rule only for the "joystick" channel
+//     if (channel === 'joystick' && channelUsers.length >= 3) {
+//       ws.send(`The channel is already occupied.`);
+//       ws.close();
+//     } else {
+//       channelUsers.push(ws)
+
+//       // Handle messages received from clients in the channel
+//       ws.on('message', (message) => {
+//         console.log(`Received: ${message}`)
+//         // Broadcast the message to all clients in the channel
+//         const clients = channels.get(channel)
+//         for (const client of clients) {
+//           if (client !== ws && client.readyState === WebSocket.OPEN) {
+//             client.send(message)
+//           }
+//         }
+//       });
+//       // Send a welcome message to the client
+//       ws.send(`Welcome to hospital: ${hospital}, channel: ${channel}`);
+//     }
+//   } else {
+//     ws.send(`Internal server error.`);
+//     // Close the connection if the hospital or channel is not valid
+//     ws.close();
+//   }
+// });
+
+
+wss.on('connection', (ws, req) => {
+  console.log('WebSocket client connected');
+  console.log(req.url);
+  const urlParts = req.url.split('/');
+  const hospital = urlParts[1];
+  const channel = urlParts[2];
+
+  if (isValidHospital(hospital) && isValidChannel(channel)) {
+    if (!hospitals.has(hospital)) {
+      hospitals.set(hospital, new Map());
+    }
+    const channels = hospitals.get(hospital);
+    if (!channels.has(channel)) {
+      channels.set(channel, []);
+    }
+    const channelUsers = channels.get(channel);
+    if (channel === 'joystick' && channelUsers.length >= 3) {
+      ws.send(`The channel is already occupied.`);
+      ws.close();
+    } else {
+      channelUsers.push(ws);
+
+      ws.on('message', (message) => {
+        console.log(`Received: ${message}`);
+        const clients = channels.get(channel);
+        for (const client of clients) {
+          if (client !== ws && client.readyState === WebSocket.OPEN) {
+            client.send(message);
+          }
+        }
+      });
+
+      ws.on('close', () => {
+        console.log('WebSocket client disconnected');
+        const index = channelUsers.indexOf(ws);
+        if (index !== -1) {
+          channelUsers.splice(index, 1);
+        }
+      });
+
+      ws.send(`Welcome to hospital: ${hospital}, channel: ${channel}`);
+    }
+  } else {
+    ws.send(`Internal server error.`);
+    ws.close();
+  }
+});
+
+
+// Validation functions
+const isValidHospital = (hospital) => {
+  // Implement hospital validation logic here
+  // -- Gets this array from local database like sqlite or lowdb or Nedb
+  return ['devTool', 'royal', 'kmch'].includes(hospital);
+}
+
+const isValidChannel = (channel) => {
+  // Implement  channel validation logic here
+  // -- Gets this array from api like a cron job runs every 1hr to get this channels list in db
+  return ['test', 'joystick', 'onlineoffline', 'notification'].includes(channel);
+}
+
+loadAssets() ?
+  server.listen(port,
+    () => {
+      console.log(`Server is Running on \n👉 Mode [ ${prod.mode} ] \n👉 Port [ ${port} ]`);
+    }
+  ) :
+  console.log("🔴 Cannot read env file.");
+
+
+// ---------------------------------------
